@@ -1,0 +1,61 @@
+openapi: 3.0.3
+info:
+  title: Finance Dashboard API
+  version: 1.0.0
+paths:
+  /health:
+    get:
+      summary: Liveness
+      responses:
+        '200':
+          description: OK
+  /auth/login:
+    post:
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        '200':
+          description: JWT + user
+  /dashboard/summary:
+    get:
+      summary: Dashboard aggregates
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: granularity
+          schema: { type: string, enum: [week, month] }
+        - in: query
+          name: limit
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Summary payload
+  /users:
+    get:
+      security: [{ bearerAuth: [] }]
+      summary: List users (admin)
+    post:
+      security: [{ bearerAuth: [] }]
+      summary: Create user (admin)
+  /records:
+    get:
+      security: [{ bearerAuth: [] }]
+      summary: List records (analyst/admin)
+    post:
+      security: [{ bearerAuth: [] }]
+      summary: Create record (admin)
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

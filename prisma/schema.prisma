@@ -18,37 +18,36 @@ enum UserStatus {
   INACTIVE
 }
 
-enum EntryType {
+enum RecordType {
   INCOME
   EXPENSE
 }
 
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
+  id           String        @id @default(cuid())
+  email        String        @unique
   passwordHash String
-  name         String
   role         Role
-  status       UserStatus @default(ACTIVE)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  status       UserStatus    @default(ACTIVE)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
   records      FinancialRecord[]
 }
 
 model FinancialRecord {
-  id              String    @id @default(cuid())
-  amount          Decimal
-  type            EntryType
-  category        String
-  date            DateTime
-  notes           String?
-  createdByUserId String
-  createdBy       User      @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  deletedAt       DateTime?
+  id        String      @id @default(cuid())
+  amount    Decimal     @db.Decimal(14, 2)
+  type      RecordType
+  category  String
+  date      DateTime    @db.Date
+  notes     String?
+  ownerId   String
+  owner     User        @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 
   @@index([date])
   @@index([category])
   @@index([type])
+  @@index([ownerId])
 }
