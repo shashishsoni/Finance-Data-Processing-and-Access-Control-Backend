@@ -2,16 +2,33 @@ openapi: 3.0.3
 info:
   title: Finance Dashboard API
   version: 1.0.0
+  description: |
+    ## Flow after login
+    1. Open **POST /auth/login** → **Try it out** → use a seed user (e.g. `viewer@example.com` / `Viewer123!` after `pnpm prisma db seed`).
+    2. From the response, copy the **`token`** string (JWT).
+    3. Click **Authorize** (top), in `bearerAuth` paste **only the token** (Swagger adds the `Bearer ` prefix).
+    4. Call **GET /dashboard/summary** or other locked routes — they send `Authorization: Bearer <token>`.
+
+    | Role | /records | /dashboard/summary | /users |
+    |------|----------|-------------------|--------|
+    | VIEWER | no | yes | no |
+    | ANALYST | read | yes | no |
+    | ADMIN | full | yes | full |
+servers:
+  - url: http://localhost:3000
+    description: Local
 paths:
   /health:
     get:
-      summary: Liveness
+      summary: Liveness (no auth)
+      tags: [Public]
       responses:
         '200':
           description: OK
   /auth/login:
     post:
-      summary: Login
+      summary: Login — returns JWT; use token in Authorize for other routes
+      tags: [Public]
       requestBody:
         required: true
         content:
@@ -20,16 +37,29 @@ paths:
               type: object
               required: [email, password]
               properties:
-                email: { type: string, format: email }
-                password: { type: string }
+                email: { type: string, format: email, example: viewer@example.com }
+                password: { type: string, example: Viewer123! }
       responses:
         '200':
-          description: JWT + user
+          description: >-
+            Returns JSON with fields `token` (JWT string) and `user`
+            (id, email, role, status).
+        '400':
+          description: Validation error
+        '401':
+          description: Invalid credentials or inactive user
   /dashboard/summary:
     get:
-      summary: Dashboard aggregates
+      summary: Dashboard aggregates (all roles)
+      tags: [Authenticated]
       security: [{ bearerAuth: [] }]
       parameters:
+        - in: query
+          name: from
+          schema: { type: string, format: date }
+        - in: query
+          name: to
+          schema: { type: string, format: date }
         - in: query
           name: granularity
           schema: { type: string, enum: [week, month] }
@@ -38,24 +68,94 @@ paths:
           schema: { type: integer }
       responses:
         '200':
-          description: Summary payload
+          description: totals, byCategory, recentActivity, trends
+        '401':
+          description: Missing or invalid JWT
   /users:
     get:
+      tags: [Users — Admin]
       security: [{ bearerAuth: [] }]
-      summary: List users (admin)
+      summary: List users
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20 }
+      responses:
+        '403':
+          description: Not admin
     post:
+      tags: [Users — Admin]
       security: [{ bearerAuth: [] }]
-      summary: Create user (admin)
+      summary: Create user
+      responses:
+        '201':
+          description: Created
+        '403':
+          description: Not admin
+  /users/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string }
+    get:
+      tags: [Users — Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Get user
+    patch:
+      tags: [Users — Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Update user
+    delete:
+      tags: [Users — Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Delete user
+      responses:
+        '204':
+          description: No content
   /records:
     get:
+      tags: [Records]
       security: [{ bearerAuth: [] }]
-      summary: List records (analyst/admin)
+      summary: List records (analyst + admin)
+      responses:
+        '403':
+          description: Viewer cannot access
     post:
+      tags: [Records]
       security: [{ bearerAuth: [] }]
-      summary: Create record (admin)
+      summary: Create record (admin only)
+      responses:
+        '403':
+          description: Not admin
+  /records/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string }
+    get:
+      tags: [Records]
+      security: [{ bearerAuth: [] }]
+      summary: Get record
+    patch:
+      tags: [Records]
+      security: [{ bearerAuth: [] }]
+      summary: Update record (admin)
+    delete:
+      tags: [Records]
+      security: [{ bearerAuth: [] }]
+      summary: Delete record (admin)
+      responses:
+        '204':
+          description: No content
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: Paste the JWT from POST /auth/login (without the word Bearer).

@@ -9,8 +9,7 @@ Express + TypeScript + Prisma + PostgreSQL: financial records, JWT auth, role-ba
 3. `pnpm install && pnpm prisma generate && pnpm prisma migrate deploy && pnpm prisma db seed`
 4. `pnpm dev`
 
-- API: `http://localhost:3000`
-- OpenAPI UI: `http://localhost:3000/api-docs`
+- API root redirects to docs: `http://localhost:3000` → Swagger UI (`/api-docs`). After login, use **Authorize** with the JWT `token` for protected routes.
 
 ## Assignment mapping
 
