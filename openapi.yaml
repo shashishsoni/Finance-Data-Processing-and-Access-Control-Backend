@@ -2,352 +2,435 @@ openapi: 3.0.3
 info:
   title: Finance Dashboard API
   version: 1.0.0
-  description: |
-    ## Flow after login
-    1. Open **POST /auth/login** → **Try it out** → use a seed user (e.g. `viewer@example.com` / `Viewer123!` after `pnpm prisma db seed`).
-    2. From the response, copy the **`token`** string (JWT).
-    3. Click **Authorize** (top), in `bearerAuth` paste **only the token** (Swagger adds the `Bearer ` prefix).
-    4. Call **GET /dashboard/summary** or other locked routes — they send `Authorization: Bearer <token>`.
-
-    | Role | /records | /dashboard/summary | /users |
-    |------|----------|-------------------|--------|
-    | VIEWER | no | yes | no |
-    | ANALYST | read | yes | no |
-    | ADMIN | full | yes | full |
+  description: Generated OpenAPI spec. Login with POST /auth/login, copy token, then use Authorize.
 servers:
   - url: http://localhost:3000
     description: Local
 paths:
   /health:
     get:
-      summary: Liveness (no auth)
-      tags: [Public]
+      tags:
+        - Public
+      summary: Liveness check
       responses:
-        '200':
+        "200":
           description: OK
   /auth/login:
     post:
-      summary: Login — returns JWT; use token in Authorize for other routes
-      tags: [Public]
+      tags:
+        - Public
+      summary: Login and get JWT
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [email, password]
-              properties:
-                email: { type: string, format: email, example: viewer@example.com }
-                password: { type: string, example: Viewer123! }
+              $ref: "#/components/schemas/LoginBody"
+            example:
+              email: admin@example.com
+              password: Admin123!
       responses:
-        '200':
-          description: >-
-            Returns JSON with fields `token` (JWT string) and `user`
-            (id, email, role, status).
-        '400':
-          description: Validation error
-        '401':
-          description: Invalid credentials or inactive user
+        "200":
+          description: Token + user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "401":
+          description: Invalid credentials
   /dashboard/summary:
     get:
-      summary: Dashboard aggregates (all roles)
-      tags: [Authenticated]
-      security: [{ bearerAuth: [] }]
+      tags:
+        - Authenticated
+      summary: Dashboard summary
+      security:
+        - bearerAuth: []
       parameters:
         - in: query
           name: from
-          schema: { type: string, format: date }
+          schema:
+            type: string
+            format: date
         - in: query
           name: to
-          schema: { type: string, format: date }
+          schema:
+            type: string
+            format: date
         - in: query
           name: granularity
-          schema: { type: string, enum: [week, month] }
+          schema:
+            type: string
+            enum:
+              - week
+              - month
         - in: query
           name: limit
-          schema: { type: integer }
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
       responses:
-        '200':
-          description: totals, byCategory, recentActivity, trends
-        '401':
-          description: Missing or invalid JWT
+        "200":
+          description: Summary data
+        "401":
+          description: Missing or invalid token
   /users:
     get:
-      tags: [Users — Admin]
-      security: [{ bearerAuth: [] }]
+      tags:
+        - Users - Admin
       summary: List users
+      security:
+        - bearerAuth: []
       parameters:
         - in: query
           name: page
-          schema: { type: integer, default: 1 }
+          schema:
+            type: integer
+            default: 1
         - in: query
           name: limit
-          schema: { type: integer, default: 20 }
+          schema:
+            type: integer
+            default: 20
       responses:
-        '200':
-          description: Paged list of users
+        "200":
+          description: Paginated users
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/User'
-                  total: { type: integer }
-                  page: { type: integer }
-                  limit: { type: integer }
-        '403':
+                $ref: "#/components/schemas/PagedUsers"
+        "403":
           description: Not admin
     post:
-      tags: [Users — Admin]
-      security: [{ bearerAuth: [] }]
+      tags:
+        - Users - Admin
       summary: Create user
-      responses:
-        '201':
-          description: Created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/User'
-        '403':
-          description: Not admin
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UserCreate'
+              $ref: "#/components/schemas/UserCreate"
             example:
               email: analyst@example.com
               password: Analyst123!
               role: ANALYST
-              status: ACTIVE
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "403":
+          description: Not admin
   /users/{id}:
     parameters:
       - in: path
         name: id
         required: true
-        schema: { type: string }
+        schema:
+          type: string
     get:
-      tags: [Users — Admin]
-      security: [{ bearerAuth: [] }]
+      tags:
+        - Users - Admin
       summary: Get user
+      security:
+        - bearerAuth: []
       responses:
-        '200':
+        "200":
           description: User
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
-        '403':
-          description: Not admin
+                $ref: "#/components/schemas/User"
     patch:
-      tags: [Users — Admin]
-      security: [{ bearerAuth: [] }]
+      tags:
+        - Users - Admin
       summary: Update user
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UserUpdate'
-            example:
-              status: ACTIVE
-              role: ANALYST
+              $ref: "#/components/schemas/UserUpdate"
       responses:
-        '200':
-          description: Updated user
+        "200":
+          description: Updated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
-        '403':
-          description: Not admin
+                $ref: "#/components/schemas/User"
     delete:
-      tags: [Users — Admin]
-      security: [{ bearerAuth: [] }]
+      tags:
+        - Users - Admin
       summary: Delete user
+      security:
+        - bearerAuth: []
       responses:
-        '204':
+        "204":
           description: No content
-        '403':
-          description: Not admin
   /records:
     get:
-      tags: [Records]
-      security: [{ bearerAuth: [] }]
-      summary: List records (analyst + admin)
+      tags:
+        - Records
+      summary: List records
+      security:
+        - bearerAuth: []
       responses:
-        '200':
-          description: List of records
+        "200":
+          description: Paginated records
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Record'
-                  total: { type: integer }
-                  page: { type: integer }
-                  limit: { type: integer }
-        '403':
-          description: Viewer cannot access
+                $ref: "#/components/schemas/PagedRecords"
     post:
-      tags: [Records]
-      security: [{ bearerAuth: [] }]
-      summary: Create record (admin only)
-      responses:
-        '201':
-          description: Created record
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Record'
-        '403':
-          description: Not admin
+      tags:
+        - Records
+      summary: Create record
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RecordCreate'
-            example:
-              amount: 120
-              type: EXPENSE
-              category: Utilities
-              date: '2026-04-04'
-              notes: Electric
+              $ref: "#/components/schemas/RecordCreate"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Record"
   /records/{id}:
     parameters:
       - in: path
         name: id
         required: true
-        schema: { type: string }
+        schema:
+          type: string
     get:
-      tags: [Records]
-      security: [{ bearerAuth: [] }]
+      tags:
+        - Records
       summary: Get record
+      security:
+        - bearerAuth: []
       responses:
-        '200':
+        "200":
           description: Record
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Record'
-        '403':
-          description: Not allowed
+                $ref: "#/components/schemas/Record"
     patch:
-      tags: [Records]
-      security: [{ bearerAuth: [] }]
-      summary: Update record (admin)
+      tags:
+        - Records
+      summary: Update record
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RecordUpdate'
-            example:
-              notes: Updated note
-              amount: 130
+              $ref: "#/components/schemas/RecordUpdate"
       responses:
-        '200':
-          description: Updated record
+        "200":
+          description: Updated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Record'
-        '403':
-          description: Not admin
+                $ref: "#/components/schemas/Record"
     delete:
-      tags: [Records]
-      security: [{ bearerAuth: [] }]
-      summary: Delete record (admin)
+      tags:
+        - Records
+      summary: Delete record
+      security:
+        - bearerAuth: []
       responses:
-        '204':
+        "204":
           description: No content
-        '403':
-          description: Not admin
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Paste the JWT from POST /auth/login (without the word Bearer).
   schemas:
+    LoginBody:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
     User:
       type: object
       properties:
-        id: { type: string }
-        email: { type: string, format: email }
+        id:
+          type: string
+        email:
+          type: string
+          format: email
         role:
           type: string
-          enum: [VIEWER, ANALYST, ADMIN]
+          enum:
+            - VIEWER
+            - ANALYST
+            - ADMIN
         status:
           type: string
-          enum: [ACTIVE, INACTIVE]
+          enum:
+            - ACTIVE
+            - INACTIVE
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
     UserCreate:
       type: object
-      required: [email, password, role]
+      required:
+        - email
+        - password
+        - role
       properties:
-        email: { type: string, format: email, example: analyst@example.com }
-        password: { type: string, minLength: 8, example: Analyst123! }
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
         role:
           type: string
-          enum: [VIEWER, ANALYST, ADMIN]
+          enum:
+            - VIEWER
+            - ANALYST
+            - ADMIN
         status:
           type: string
-          enum: [ACTIVE, INACTIVE]
-          description: Optional; defaults to ACTIVE
+          enum:
+            - ACTIVE
+            - INACTIVE
     UserUpdate:
       type: object
       properties:
-        email: { type: string, format: email }
-        password: { type: string, minLength: 8 }
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
         role:
           type: string
-          enum: [VIEWER, ANALYST, ADMIN]
+          enum:
+            - VIEWER
+            - ANALYST
+            - ADMIN
         status:
           type: string
-          enum: [ACTIVE, INACTIVE]
+          enum:
+            - ACTIVE
+            - INACTIVE
     Record:
       type: object
       properties:
-        id: { type: string }
-        amount: { type: number, example: 120.5 }
+        id:
+          type: string
+        amount:
+          type: string
         type:
           type: string
-          enum: [INCOME, EXPENSE]
-        category: { type: string, example: Utilities }
-        date: { type: string, format: date-time }
-        notes: { type: string, nullable: true }
-        ownerId: { type: string }
-    RecordCreate:
-      type: object
-      required: [amount, type, category, date]
-      properties:
-        amount: { type: number, example: 120.5 }
-        type:
+          enum:
+            - INCOME
+            - EXPENSE
+        category:
           type: string
-          enum: [INCOME, EXPENSE]
-        category: { type: string, example: Utilities }
-        date: { type: string, format: date, example: '2026-04-04' }
-        notes: { type: string, nullable: true }
+        date:
+          type: string
+          format: date-time
+        notes:
+          type: string
+          nullable: true
         ownerId:
           type: string
-          description: Optional; if omitted, defaults to the current user on the server
+    RecordCreate:
+      type: object
+      required:
+        - amount
+        - type
+        - category
+        - date
+      properties:
+        amount:
+          type: number
+        type:
+          type: string
+          enum:
+            - INCOME
+            - EXPENSE
+        category:
+          type: string
+        date:
+          type: string
+          format: date
+        notes:
+          type: string
+        ownerId:
+          type: string
     RecordUpdate:
       type: object
       properties:
-        amount: { type: number }
+        amount:
+          type: number
         type:
           type: string
-          enum: [INCOME, EXPENSE]
-        category: { type: string }
-        date: { type: string, format: date }
-        notes: { type: string, nullable: true }
-        ownerId: { type: string }
+          enum:
+            - INCOME
+            - EXPENSE
+        category:
+          type: string
+        date:
+          type: string
+          format: date
+        notes:
+          type: string
+        ownerId:
+          type: string
+    PagedUsers:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+    PagedRecords:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Record"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer

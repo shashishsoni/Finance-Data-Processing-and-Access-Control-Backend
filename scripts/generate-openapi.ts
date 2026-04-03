@@ -1,0 +1,292 @@
+import { writeFileSync } from 'fs';
+import path from 'path';
+import YAML from 'yaml';
+
+const root = path.resolve(__dirname, '..');
+const openapiPath = path.join(root, 'openapi.yaml');
+
+function main() {
+  const doc = {
+    openapi: '3.0.3',
+    info: {
+      title: 'Finance Dashboard API',
+      version: '1.0.0',
+      description:
+        'Generated OpenAPI spec. Login with POST /auth/login, copy token, then use Authorize.',
+    },
+    servers: [{ url: 'http://localhost:3000', description: 'Local' }],
+    paths: {
+      '/health': {
+        get: {
+          tags: ['Public'],
+          summary: 'Liveness check',
+          responses: { '200': { description: 'OK' } },
+        },
+      },
+      '/auth/login': {
+        post: {
+          tags: ['Public'],
+          summary: 'Login and get JWT',
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/LoginBody' },
+                example: { email: 'admin@example.com', password: 'Admin123!' },
+              },
+            },
+          },
+          responses: {
+            '200': {
+              description: 'Token + user',
+              content: { 'application/json': { schema: { $ref: '#/components/schemas/LoginResponse' } } },
+            },
+            '401': { description: 'Invalid credentials' },
+          },
+        },
+      },
+      '/dashboard/summary': {
+        get: {
+          tags: ['Authenticated'],
+          summary: 'Dashboard summary',
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { in: 'query', name: 'from', schema: { type: 'string', format: 'date' } },
+            { in: 'query', name: 'to', schema: { type: 'string', format: 'date' } },
+            { in: 'query', name: 'granularity', schema: { type: 'string', enum: ['week', 'month'] } },
+            { in: 'query', name: 'limit', schema: { type: 'integer', minimum: 1, maximum: 50 } },
+          ],
+          responses: {
+            '200': { description: 'Summary data' },
+            '401': { description: 'Missing or invalid token' },
+          },
+        },
+      },
+      '/users': {
+        get: {
+          tags: ['Users - Admin'],
+          summary: 'List users',
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { in: 'query', name: 'page', schema: { type: 'integer', default: 1 } },
+            { in: 'query', name: 'limit', schema: { type: 'integer', default: 20 } },
+          ],
+          responses: {
+            '200': {
+              description: 'Paginated users',
+              content: { 'application/json': { schema: { $ref: '#/components/schemas/PagedUsers' } } },
+            },
+            '403': { description: 'Not admin' },
+          },
+        },
+        post: {
+          tags: ['Users - Admin'],
+          summary: 'Create user',
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/UserCreate' },
+                example: { email: 'analyst@example.com', password: 'Analyst123!', role: 'ANALYST' },
+              },
+            },
+          },
+          responses: {
+            '201': { description: 'Created', content: { 'application/json': { schema: { $ref: '#/components/schemas/User' } } } },
+            '403': { description: 'Not admin' },
+          },
+        },
+      },
+      '/users/{id}': {
+        parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'string' } }],
+        get: {
+          tags: ['Users - Admin'],
+          summary: 'Get user',
+          security: [{ bearerAuth: [] }],
+          responses: { '200': { description: 'User', content: { 'application/json': { schema: { $ref: '#/components/schemas/User' } } } } },
+        },
+        patch: {
+          tags: ['Users - Admin'],
+          summary: 'Update user',
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/UserUpdate' } } },
+          },
+          responses: { '200': { description: 'Updated', content: { 'application/json': { schema: { $ref: '#/components/schemas/User' } } } } },
+        },
+        delete: {
+          tags: ['Users - Admin'],
+          summary: 'Delete user',
+          security: [{ bearerAuth: [] }],
+          responses: { '204': { description: 'No content' } },
+        },
+      },
+      '/records': {
+        get: {
+          tags: ['Records'],
+          summary: 'List records',
+          security: [{ bearerAuth: [] }],
+          responses: {
+            '200': {
+              description: 'Paginated records',
+              content: { 'application/json': { schema: { $ref: '#/components/schemas/PagedRecords' } } },
+            },
+          },
+        },
+        post: {
+          tags: ['Records'],
+          summary: 'Create record',
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/RecordCreate' } } },
+          },
+          responses: {
+            '201': {
+              description: 'Created',
+              content: { 'application/json': { schema: { $ref: '#/components/schemas/Record' } } },
+            },
+          },
+        },
+      },
+      '/records/{id}': {
+        parameters: [{ in: 'path', name: 'id', required: true, schema: { type: 'string' } }],
+        get: {
+          tags: ['Records'],
+          summary: 'Get record',
+          security: [{ bearerAuth: [] }],
+          responses: { '200': { description: 'Record', content: { 'application/json': { schema: { $ref: '#/components/schemas/Record' } } } } },
+        },
+        patch: {
+          tags: ['Records'],
+          summary: 'Update record',
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/RecordUpdate' } } },
+          },
+          responses: { '200': { description: 'Updated', content: { 'application/json': { schema: { $ref: '#/components/schemas/Record' } } } } },
+        },
+        delete: {
+          tags: ['Records'],
+          summary: 'Delete record',
+          security: [{ bearerAuth: [] }],
+          responses: { '204': { description: 'No content' } },
+        },
+      },
+    },
+    components: {
+      securitySchemes: {
+        bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+      },
+      schemas: {
+        LoginBody: {
+          type: 'object',
+          required: ['email', 'password'],
+          properties: { email: { type: 'string', format: 'email' }, password: { type: 'string' } },
+        },
+        User: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            email: { type: 'string', format: 'email' },
+            role: { type: 'string', enum: ['VIEWER', 'ANALYST', 'ADMIN'] },
+            status: { type: 'string', enum: ['ACTIVE', 'INACTIVE'] },
+          },
+        },
+        LoginResponse: {
+          type: 'object',
+          properties: {
+            token: { type: 'string' },
+            user: { $ref: '#/components/schemas/User' },
+          },
+        },
+        UserCreate: {
+          type: 'object',
+          required: ['email', 'password', 'role'],
+          properties: {
+            email: { type: 'string', format: 'email' },
+            password: { type: 'string', minLength: 8 },
+            role: { type: 'string', enum: ['VIEWER', 'ANALYST', 'ADMIN'] },
+            status: { type: 'string', enum: ['ACTIVE', 'INACTIVE'] },
+          },
+        },
+        UserUpdate: {
+          type: 'object',
+          properties: {
+            email: { type: 'string', format: 'email' },
+            password: { type: 'string', minLength: 8 },
+            role: { type: 'string', enum: ['VIEWER', 'ANALYST', 'ADMIN'] },
+            status: { type: 'string', enum: ['ACTIVE', 'INACTIVE'] },
+          },
+        },
+        Record: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            amount: { type: 'string' },
+            type: { type: 'string', enum: ['INCOME', 'EXPENSE'] },
+            category: { type: 'string' },
+            date: { type: 'string', format: 'date-time' },
+            notes: { type: 'string', nullable: true },
+            ownerId: { type: 'string' },
+          },
+        },
+        RecordCreate: {
+          type: 'object',
+          required: ['amount', 'type', 'category', 'date'],
+          properties: {
+            amount: { type: 'number' },
+            type: { type: 'string', enum: ['INCOME', 'EXPENSE'] },
+            category: { type: 'string' },
+            date: { type: 'string', format: 'date' },
+            notes: { type: 'string' },
+            ownerId: { type: 'string' },
+          },
+        },
+        RecordUpdate: {
+          type: 'object',
+          properties: {
+            amount: { type: 'number' },
+            type: { type: 'string', enum: ['INCOME', 'EXPENSE'] },
+            category: { type: 'string' },
+            date: { type: 'string', format: 'date' },
+            notes: { type: 'string' },
+            ownerId: { type: 'string' },
+          },
+        },
+        PagedUsers: {
+          type: 'object',
+          properties: {
+            items: { type: 'array', items: { $ref: '#/components/schemas/User' } },
+            total: { type: 'integer' },
+            page: { type: 'integer' },
+            limit: { type: 'integer' },
+          },
+        },
+        PagedRecords: {
+          type: 'object',
+          properties: {
+            items: { type: 'array', items: { $ref: '#/components/schemas/Record' } },
+            total: { type: 'integer' },
+            page: { type: 'integer' },
+            limit: { type: 'integer' },
+          },
+        },
+      },
+    },
+  };
+
+  const out = YAML.stringify(doc, {
+    lineWidth: 120,
+    indent: 2,
+    defaultStringType: 'PLAIN',
+  });
+
+  writeFileSync(openapiPath, out, 'utf8');
+  console.log(`Generated ${openapiPath} from code template`);
+}
+
+main();
