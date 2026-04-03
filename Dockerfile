@@ -15,4 +15,4 @@ RUN pnpm build
 ENV NODE_ENV=production
 EXPOSE 10000
 
-CMD ["sh", "-c", "pnpm prisma migrate deploy && node dist/index.js"]
+CMD ["sh", "-c", "pnpm prisma migrate deploy && if [ \"$SEED_ON_STARTUP\" = \"true\" ]; then pnpm prisma db seed; fi && node dist/index.js"]
