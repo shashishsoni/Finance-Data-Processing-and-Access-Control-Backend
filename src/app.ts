@@ -5,11 +5,12 @@ import express from 'express';
 import helmet from 'helmet';
 import swaggerUi from 'swagger-ui-express';
 import YAML from 'yaml';
+import type { Express } from 'express';
 import type { Env } from './config/env';
 import { errorHandler } from './middleware/errorHandler';
 import { buildRouter } from './router';
 
-export function createApp(env: Env) {
+export function createApp(env: Env): Express {
   const app = express();
   app.use(express.json());
   app.use(

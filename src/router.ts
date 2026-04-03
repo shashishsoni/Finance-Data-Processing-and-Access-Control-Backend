@@ -1,6 +1,7 @@
 import { Role } from '@prisma/client';
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
+import type { Router as ExpressRouter } from 'express';
 import type { Env } from './config/env';
 import { authenticate } from './middleware/authenticate';
 import { authorize } from './middleware/authorize';
@@ -25,7 +26,7 @@ function pid(req: { params: Record<string, string | string[] | undefined> }, k: 
   return (Array.isArray(v) ? v[0] : v) ?? '';
 }
 
-export function buildRouter(env: Env) {
+export function buildRouter(env: Env): ExpressRouter {
   const r = Router();
   const authed = authenticate(env);
   const admin = [authed, authorize(Role.ADMIN)];
