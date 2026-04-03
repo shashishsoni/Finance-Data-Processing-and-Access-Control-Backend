@@ -14,7 +14,7 @@ function main() {
       description:
         'Generated OpenAPI spec. Login with POST /auth/login, copy token, then use Authorize.',
     },
-    servers: [{ url: 'http://localhost:3000', description: 'Local' }],
+    servers: [{ url: '/', description: 'Current host' }],
     paths: {
       '/health': {
         get: {

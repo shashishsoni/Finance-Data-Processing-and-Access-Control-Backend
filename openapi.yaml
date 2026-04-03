@@ -4,8 +4,8 @@ info:
   version: 1.0.0
   description: Generated OpenAPI spec. Login with POST /auth/login, copy token, then use Authorize.
 servers:
-  - url: http://localhost:3000
-    description: Local
+  - url: /
+    description: Current host
 paths:
   /health:
     get:
