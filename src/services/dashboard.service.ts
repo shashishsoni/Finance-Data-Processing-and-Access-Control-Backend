@@ -10,13 +10,19 @@ function dec(v: Prisma.Decimal | null | undefined) {
 }
 
 export async function dashboardSummary(role: Role, q: Q) {
-  const to = q.to ?? new Date();
-  const from = q.from ?? new Date(to.getFullYear() - 1, to.getMonth(), to.getDate());
   const { granularity, limit } = q;
 
-  const where: Prisma.FinancialRecordWhereInput = {
-    date: { gte: from, lte: to },
-  };
+  const from = q.from ?? null;
+  const to = q.to ?? null;
+
+  const where: Prisma.FinancialRecordWhereInput =
+    from && to
+      ? { date: { gte: from, lte: to } }
+      : from
+      ? { date: { gte: from } }
+      : to
+      ? { date: { lte: to } }
+      : {};
 
   const [incomeAgg, expenseAgg, byCategory, recentRows, trendRows] = await Promise.all([
     prisma.financialRecord.aggregate({
@@ -43,7 +49,10 @@ export async function dashboardSummary(role: Role, q: Q) {
                  f.type::text AS type,
                  SUM(f.amount) AS sum
           FROM "FinancialRecord" f
-          WHERE f.date >= ${from} AND f.date <= ${to}
+          ${from && to ? Prisma.sql`WHERE f.date >= ${from} AND f.date <= ${to}` :
+            from ? Prisma.sql`WHERE f.date >= ${from}` :
+            to ? Prisma.sql`WHERE f.date <= ${to}` :
+            Prisma.empty}
           GROUP BY 1, f.type
           ORDER BY 1`
       : prisma.$queryRaw<{ bucket: Date; type: string; sum: unknown }[]>`
@@ -51,7 +60,10 @@ export async function dashboardSummary(role: Role, q: Q) {
                  f.type::text AS type,
                  SUM(f.amount) AS sum
           FROM "FinancialRecord" f
-          WHERE f.date >= ${from} AND f.date <= ${to}
+          ${from && to ? Prisma.sql`WHERE f.date >= ${from} AND f.date <= ${to}` :
+            from ? Prisma.sql`WHERE f.date >= ${from}` :
+            to ? Prisma.sql`WHERE f.date <= ${to}` :
+            Prisma.empty}
           GROUP BY 1, f.type
           ORDER BY 1`,
   ]);

@@ -84,6 +84,20 @@ paths:
           name: limit
           schema: { type: integer, default: 20 }
       responses:
+        '200':
+          description: Paged list of users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+                  total: { type: integer }
+                  page: { type: integer }
+                  limit: { type: integer }
         '403':
           description: Not admin
     post:
@@ -93,8 +107,23 @@ paths:
       responses:
         '201':
           description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
         '403':
           description: Not admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+            example:
+              email: analyst@example.com
+              password: Analyst123!
+              role: ANALYST
+              status: ACTIVE
   /users/{id}:
     parameters:
       - in: path
@@ -105,10 +134,37 @@ paths:
       tags: [Users — Admin]
       security: [{ bearerAuth: [] }]
       summary: Get user
+      responses:
+        '200':
+          description: User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '403':
+          description: Not admin
     patch:
       tags: [Users — Admin]
       security: [{ bearerAuth: [] }]
       summary: Update user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdate'
+            example:
+              status: ACTIVE
+              role: ANALYST
+      responses:
+        '200':
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '403':
+          description: Not admin
     delete:
       tags: [Users — Admin]
       security: [{ bearerAuth: [] }]
@@ -116,12 +172,28 @@ paths:
       responses:
         '204':
           description: No content
+        '403':
+          description: Not admin
   /records:
     get:
       tags: [Records]
       security: [{ bearerAuth: [] }]
       summary: List records (analyst + admin)
       responses:
+        '200':
+          description: List of records
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Record'
+                  total: { type: integer }
+                  page: { type: integer }
+                  limit: { type: integer }
         '403':
           description: Viewer cannot access
     post:
@@ -129,8 +201,26 @@ paths:
       security: [{ bearerAuth: [] }]
       summary: Create record (admin only)
       responses:
+        '201':
+          description: Created record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Record'
         '403':
           description: Not admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordCreate'
+            example:
+              amount: 120
+              type: EXPENSE
+              category: Utilities
+              date: '2026-04-04'
+              notes: Electric
   /records/{id}:
     parameters:
       - in: path
@@ -141,10 +231,37 @@ paths:
       tags: [Records]
       security: [{ bearerAuth: [] }]
       summary: Get record
+      responses:
+        '200':
+          description: Record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Record'
+        '403':
+          description: Not allowed
     patch:
       tags: [Records]
       security: [{ bearerAuth: [] }]
       summary: Update record (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordUpdate'
+            example:
+              notes: Updated note
+              amount: 130
+      responses:
+        '200':
+          description: Updated record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Record'
+        '403':
+          description: Not admin
     delete:
       tags: [Records]
       security: [{ bearerAuth: [] }]
@@ -152,6 +269,8 @@ paths:
       responses:
         '204':
           description: No content
+        '403':
+          description: Not admin
 components:
   securitySchemes:
     bearerAuth:
@@ -159,3 +278,76 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Paste the JWT from POST /auth/login (without the word Bearer).
+  schemas:
+    User:
+      type: object
+      properties:
+        id: { type: string }
+        email: { type: string, format: email }
+        role:
+          type: string
+          enum: [VIEWER, ANALYST, ADMIN]
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+    UserCreate:
+      type: object
+      required: [email, password, role]
+      properties:
+        email: { type: string, format: email, example: analyst@example.com }
+        password: { type: string, minLength: 8, example: Analyst123! }
+        role:
+          type: string
+          enum: [VIEWER, ANALYST, ADMIN]
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+          description: Optional; defaults to ACTIVE
+    UserUpdate:
+      type: object
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8 }
+        role:
+          type: string
+          enum: [VIEWER, ANALYST, ADMIN]
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+    Record:
+      type: object
+      properties:
+        id: { type: string }
+        amount: { type: number, example: 120.5 }
+        type:
+          type: string
+          enum: [INCOME, EXPENSE]
+        category: { type: string, example: Utilities }
+        date: { type: string, format: date-time }
+        notes: { type: string, nullable: true }
+        ownerId: { type: string }
+    RecordCreate:
+      type: object
+      required: [amount, type, category, date]
+      properties:
+        amount: { type: number, example: 120.5 }
+        type:
+          type: string
+          enum: [INCOME, EXPENSE]
+        category: { type: string, example: Utilities }
+        date: { type: string, format: date, example: '2026-04-04' }
+        notes: { type: string, nullable: true }
+        ownerId:
+          type: string
+          description: Optional; if omitted, defaults to the current user on the server
+    RecordUpdate:
+      type: object
+      properties:
+        amount: { type: number }
+        type:
+          type: string
+          enum: [INCOME, EXPENSE]
+        category: { type: string }
+        date: { type: string, format: date }
+        notes: { type: string, nullable: true }
+        ownerId: { type: string }
